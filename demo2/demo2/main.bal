@@ -1,6 +1,6 @@
 import ballerina/http;
 
-listener http:Listener httpDefaultListener = http:getDefaultListener();
+listener http:Listener dmartListener = new (port = 8081);
 
 service /kmart on dmartListener {
     resource function get outlets() returns json|http:InternalServerError {
@@ -12,5 +12,3 @@ service /kmart on dmartListener {
         }
     }
 }
-
-listener http:Listener dmartListener = new (port = 8081);
