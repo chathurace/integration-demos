@@ -1,0 +1,25 @@
+/*
+### Try Service: 'amart' (http://localhost:9095/amart)
+
+*/
+
+/*
+#### POST /orders
+
+*/
+###
+POST http://localhost:9095/amart/orders
+Content-Type: application/json
+
+# Modify the JSON payload as needed
+#
+# Expected schema:
+#   object
+#   - orderId: string
+#   - customerId: string
+
+{
+  "orderId": "{?}",
+  "customerId": "{?}"
+}
+
