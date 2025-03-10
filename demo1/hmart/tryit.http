@@ -1,0 +1,12 @@
+/*
+### Try Service: 'hmart' (http://localhost:9090/hmart)
+
+*/
+
+/*
+#### GET /outlets
+
+*/
+###
+GET http://localhost:9090/hmart/outlets
+
