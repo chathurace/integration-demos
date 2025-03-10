@@ -1,0 +1,12 @@
+/*
+### Try Resource: 'get /outlets'
+
+*/
+
+/*
+
+
+*/
+###
+GET http://localhost:8082/dmartp/outlets
+
