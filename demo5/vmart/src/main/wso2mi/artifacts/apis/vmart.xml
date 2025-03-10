@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/vmart" name="vmart" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="POST" uri-template="/orders">
+        <inSequence>
+            <!-- Extract customerId and productId from the payload -->
+            <property name="customerId" expression="//customerId" type="STRING" scope="default"/>
+            <property name="productId" expression="//productId" type="STRING" scope="default"/>
+
+            <!-- Database query to retrieve customer data -->
+            <dblookup>
+                <connection>
+                    <pool>
+                        <driver>com.mysql.jdbc.Driver</driver>
+                        <url>jdbc:mysql://localhost:3306/gmart</url>
+                        <user>root</user>
+                        <password>cce123</password>
+                        <property name="validationquery" value=""/>
+                    </pool>
+                </connection>
+                <statement>
+                    <sql><![CDATA[SELECT * FROM customers WHERE customerId = ?]]></sql>
+                    <parameter expression="get-property('customerId')" type="VARCHAR"/>
+                    <result column="address" name="address"/>
+                    <result column="status" name="customerStatus"/>
+                </statement>
+            </dblookup>
+            <!-- Check if the customer status is BLOCKED -->
+            <filter source="get-property('customerStatus')" regex="BLOCKED">
+                <then>
+                    <payloadFactory media-type="json">
+                        <format>{"error": "Customer is blocked and cannot proceed with the order."}</format>
+                        <args/>
+                    </payloadFactory>
+                    <respond/>
+                </then>
+                <else>
+                    <!-- Respond with customer data -->
+                    <payloadFactory media-type="json" template-type="Default">
+                        <format>{"orderId": "$1", "address": "$2"}</format>
+                        <args>
+                            <arg expression="orderId" evaluator="json"/>
+                            <arg expression="get-property('address')" evaluator="xml"/>
+                        </args>
+                    </payloadFactory>
+                    <call>
+                        <endpoint key="ShipmentService"/>
+                    </call>
+                    <respond/>
+                </else>
+            </filter>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+</api>
