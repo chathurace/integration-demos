@@ -1,5 +1,5 @@
 /*
-### Try Service: 'kmart' (http://localhost:9090/kmart)
+### Try Service: 'kmart' (http://localhost:8081/kmart)
 
 */
 
@@ -8,5 +8,5 @@
 
 */
 ###
-GET http://localhost:9090/kmart/outlets
+GET http://localhost:8081/kmart/outlets
 
