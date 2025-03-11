@@ -1,7 +1,8 @@
-
 type SalesOrder record {|
     string orderId;
     string customerId;
+    string productId;
+    int quantity;
 |};
 
 type Customer record {|
@@ -14,3 +15,4 @@ type ShipmentStatus record {|
     string orderId;
     string status;
 |};
+
