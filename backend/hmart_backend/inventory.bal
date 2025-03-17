@@ -8,9 +8,9 @@ service /inventory on inventoryListener {
     map<ProductStock> stocks = {};
 
     function init() {
-        self.stocks["p1"] = {productId: "p10", stock: 10};
-        self.stocks["p2"] = {productId: "p10", stock: 2};
-        self.stocks["p3"] = {productId: "p10", stock: 50};
+        self.stocks["p1"] = {productId: "p1", stock: 10};
+        self.stocks["p2"] = {productId: "p2", stock: 2};
+        self.stocks["p3"] = {productId: "p3", stock: 50};
     }
 
     resource function get products/[string productId]() returns error|ProductStock {
@@ -21,22 +21,26 @@ service /inventory on inventoryListener {
         return stock;
     }
 
-    resource function post reservation(@http:Payload ProductStock stock) returns error? {
-        if !self.stocks.hasKey(stock.productId) {
-            return error("Product not founet: " + stock.productId);
+    resource function post reservation(@http:Payload ProductOrder porder) returns json {
+        if !self.stocks.hasKey(porder.product) {
+            io:println("Ordered: ", porder);
+            return {orderId: porder.'order, status: "ordered"};
         }
-        ProductStock currentStock = self.stocks.get(stock.productId);
-        int newStock = currentStock.stock - stock.stock;
+        ProductStock currentStock = self.stocks.get(porder.product);
+        int newStock = currentStock.stock - porder.amount;
         if newStock < 0 {
-            return error("No sufficient stocks to reserve.");
+            io:println("Ordered: ", porder);
+            return {orderId: porder.'order, status: "ordered"};
         }
         currentStock.stock = newStock;
+        io:println("Reserved: ", porder);
+        return {orderId: porder.'order, status: "success"};
     }
 
     resource function post allocations(@http:Payload AllocationRequest allocation) returns AllocationResponse {
         if !self.stocks.hasKey(allocation.productId) {
             io:println("Invalid product: " + allocation.productId);
-            return {orderId: allocation.orderId, status: INVALID_PRODUCT};
+            return {orderId: allocation.orderId, status: OUT_OF_STOCK};
         }
 
         ProductStock currentStock = self.stocks.get(allocation.productId);

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/inventory" name="Inventory" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="POST" uri-template="/reservations">
+        <inSequence>
+            <variable name="orderId" type="STRING" expression="${payload.order}"/>
+            <variable name="productId" type="STRING" expression="${payload.product}"/>
+            <variable name="quantity" type="STRING" expression="${payload.amount}"/>
+            <payloadFactory media-type="json" template-type="default">
+                <format>{ "orderId": "${vars.orderId}", "productId": "${vars.productId}", "quantity": ${vars.quantity}<span style="font-family: var(--font-family); color: var(--input-foreground); font-style: inherit; font-variant-ligatures: inherit; font-variant-caps: inherit; font-weight: inherit;"> </span>}</format>
+            </payloadFactory>
+            <call>
+                <endpoint key="AllocationsEp"/>
+            </call>
+            <log category="INFO" logMessageID="false" logFullPayload="false">
+                <message>${payload}</message>
+            </log>
+            <filter xpath="${payload.status == &quot;ALLOCATED&quot;}">
+                <then>
+                    <payloadFactory media-type="json" template-type="default">
+                        <format>{"orderId": "${vars.orderId}","status": "success"}</format>
+                    </payloadFactory>
+                    <respond/>
+                </then>
+                <else>
+                    <payloadFactory media-type="json" template-type="default">
+                        <format>{
+                            "supplierId": "s1",
+                            "productId": "${vars.productId}",
+                            "quantity": ${vars.quantity}
+                            }</format>
+                    </payloadFactory>
+                    <call>
+                        <endpoint key="PurchaseOrdersEp"/>
+                    </call>
+                    <payloadFactory media-type="json" template-type="default">
+                        <format>{"orderId": "${vars.orderId}","status": "ordered"}</format>
+                    </payloadFactory>
+                    <respond/>
+                </else>
+            </filter>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+</api>

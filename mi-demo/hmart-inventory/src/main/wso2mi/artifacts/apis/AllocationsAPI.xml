@@ -1,0 +1,187 @@
+<api xmlns="http://ws.apache.org/ns/synapse" name="AllocationsAPI" context="/inventory">
+    <resource methods="POST" uri-template="/reservations">
+        <inSequence>
+            <propertyGroup>
+                <property name="orderId" expression="json-eval($.orderId)" scope="default" type="STRING"/>
+                <property name="productId" expression="json-eval($.productId)" scope="default" type="STRING"/>
+                <property name="quantity" expression="json-eval($.quantity)" scope="default" type="STRING"/>
+            </propertyGroup>
+            <log level="custom">
+                <property name="message" expression="fn:concat('Received order with ID: ', get-property('orderId'), ', Product ID: ', get-property('productId'), ', Quantity: ', get-property('quantity'))"/>
+            </log>
+            <!-- Invoke the inventory backend service -->
+            <call>
+                <endpoint>
+                    <http method="post" uri-template="http://localhost:8091/inventory/allocations"/>
+                </endpoint>
+            </call>
+            <!-- Extract the response from the backend service -->
+            <property name="backendStatus" expression="json-eval($.status)" scope="default" type="STRING"/>
+            <!-- Conditionally respond based on the status -->
+            <filter source="get-property('backendStatus')" regex="ALLOCATED">
+                <then>
+                    <payloadFactory media-type="json">
+                        <format>{"orderId": "$1", "status": "items ready"}</format>
+                        <args>
+                            <arg evaluator="xml" expression="get-property('orderId')"/>
+                        </args>
+                    </payloadFactory>
+                    <respond/>
+                </then>
+                <else>
+                    <property name="uri.var.productId" expression="get-property('productId')"/>
+                    <call>
+                        <endpoint>
+                            <http method="get" uri-template="http://localhost:8096/purchasing/suppliers/{uri.var.productId}"/>
+                        </endpoint>
+                    </call>
+                    <!-- Check if the response is empty or there was an error -->
+                    <filter source="json-eval($.suppliers)" regex="^\[\]$">
+                        <then>
+                            <payloadFactory media-type="json">
+                                <format>{"error": "No suppliers found or error in retrieving suppliers", "orderId": "$1"}</format>
+                                <args>
+                                    <arg evaluator="xml" expression="get-property('orderId')"/>
+                                </args>
+                            </payloadFactory>
+                            <respond/>
+                        </then>
+                        <else>
+                            <property name="suppliersResponse" expression="json-eval($.)" scope="default" type="STRING"/>
+                            <log level="custom">
+                                <property name="suppliersInfo" expression="get-property('suppliersResponse')"/>
+                            </log>
+                            <!-- Extract the first supplier from the response -->
+                            <property name="firstSupplierId" scope="default" type="STRING" expression="json-eval($[0].supplierId)"/>
+                            <!-- Construct payload and call the purchasing endpoint -->
+                            <payloadFactory media-type="json">
+                                <format>{"supplierId": "$1", "productId": "$2", "quantity": $3}</format>
+                                <args>
+                                    <arg evaluator="xml" expression="get-property('firstSupplierId')"/>
+                                    <arg evaluator="xml" expression="get-property('productId')"/>
+                                    <arg evaluator="xml" expression="get-property('quantity')"/>
+                                </args>
+                            </payloadFactory>
+                            <call>
+                                <endpoint>
+                                    <http method="post" uri-template="http://localhost:8096/purchasing/purchaseOrders"/>
+                                </endpoint>
+                            </call>
+                            <payloadFactory media-type="json" template-type="default">
+                                <format>{ "orderId": "$1", "status": "ordered from a supplier." "supplier": "$2"}</format>
+                            </payloadFactory>
+                            <respond/>
+                        </else>
+                    </filter>
+                </else>
+            </filter>
+        </inSequence>
+    </resource>
+    <resource methods="POST" uri-template="/bookings">
+        <inSequence>
+            <log category="INFO" logMessageID="false" logFullPayload="false">
+                <message>Starting the flow</message>
+            </log>
+            <log category="INFO" logMessageID="false" logFullPayload="false">
+                <message>${payload}</message>
+            </log>
+            <variable name="orderId" type="STRING" expression="${payload.orderId}"/>
+            <variable name="productId" type="STRING" expression="${payload.productId}"/>
+            <variable name="quantity" type="STRING" expression="${payload.quantity}"/>
+            <log category="INFO" logMessageID="false" logFullPayload="true">
+                <message></message>
+                <property name="order" expression="${vars.orderId}"/>
+                <property name="amount" expression="${vars.quantity}"/>
+            </log>
+            <payloadFactory  media-type="json" template-type="freemarker">
+        <format><![CDATA[{  "orderId": "${vars.orderId}",  "productId": "${vars.productId}",  "quantity": ${vars.quantity}}]]></format>
+            </payloadFactory>
+            <log category="INFO" logMessageID="false" logFullPayload="true">
+                <message>${payload}</message>
+            </log>
+            <call>
+                <endpoint key="AllocationsEp"/>
+            </call>
+            <filter xpath="${payload.status == &quot;OUT_OF_STOCK&quot;}">
+                <then>
+                    <log category="INFO" logMessageID="false" logFullPayload="false">
+                        <message>L1</message>
+                    </log>
+                    <call blocking="true">
+                        <endpoint key="SuppliersEp"/>
+                    </call>
+                    <log category="INFO" logMessageID="false" logFullPayload="false">
+                        <message>${payload}</message>
+                    </log>
+                    <SupplierSelector.calculateTotal>
+                        <responseVariable>selectedSup</responseVariable>
+                        <overwriteBody>false</overwriteBody>
+                        <suppliers>'{
+                            &quot;a&quot;: &quot;b&quot;
+                            }'</suppliers>
+                    </SupplierSelector.calculateTotal>
+
+                    <log category="INFO" logMessageID="false" logFullPayload="false">
+                        <message>${vars.selectedSup.payload}</message>
+                    </log>
+                    <payloadFactory media-type="json" template-type="freemarker">
+                        <format><![CDATA[{
+"supplierId": "${payload[0].supplierId}",<span style="font-family: var(--font-family); color: var(--input-foreground); font-style: inherit; font-variant-ligatures: inherit; font-variant-caps: inherit; font-weight: inherit;">"productId": "${vars.productId}",</span><span style="font-family: var(--font-family); color: var(--input-foreground); font-style: inherit; font-variant-ligatures: inherit; font-variant-caps: inherit; font-weight: inherit;">"quantity": ${vars.quantity}</span>}]]></format>
+                    </payloadFactory>
+                    <respond/>
+                </then>
+                <else>
+                    <log category="INFO" logMessageID="false" logFullPayload="false">
+                        <message>L2</message>
+                    </log>
+                    <payloadFactory media-type="json" template-type="default">
+                        <format>{"orderId": "${vars.orderId}","status": "Allocated and processed."}</format>
+                    </payloadFactory>
+                    <respond/>
+                </else>
+            </filter>
+        </inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+    <resource methods="POST" uri-template="/pbookings">
+        <inSequence>
+            <variable name="orderId" type="STRING" expression="${payload.orderId}"/>
+            <variable name="productId" type="STRING" expression="${payload.productId}"/>
+            <variable name="quantity" type="STRING" expression="${payload.quantity}"/>
+            <call>
+                <endpoint key="InventoryEp"/>
+            </call>
+        <filter xpath="${payload.status == &quot;ALLOCATED&quot;}">
+        <then>
+                    <payloadFactory media-type="json" template-type="default">
+                        <format>{"orderId": "${vars.orderId}","status": "success"}</format>
+                    </payloadFactory>
+                    <respond/>
+                </then>
+        <else>
+                    <payloadFactory media-type="text" template-type="default">
+                        <format>${vars.productIdvars.productId},${vars.quantity}</format>
+                    </payloadFactory>
+                    <file.write configKey="Purchasing">
+                        <filePath>purchase.csv</filePath>
+                        <contentOrExpression>{${payload}}</contentOrExpression>
+                        <encoding>UTF-8</encoding>
+                        <mimeType>Automatic</mimeType>
+                        <writeMode>Append</writeMode>
+                        <appendPosition>0</appendPosition>
+                        <enableStreaming>false</enableStreaming>
+                        <appendNewLine>false</appendNewLine>
+                        <enableLock>false</enableLock>
+                        <includeResultTo>Message Body</includeResultTo>
+                        <updateLastModified>true</updateLastModified>
+                        <maxRetries>0</maxRetries>
+                        <retryDelay>0</retryDelay>
+                    </file.write>
+                    <respond/>
+                </else>
+</filter></inSequence>
+        <faultSequence>
+        </faultSequence>
+    </resource>
+</api>

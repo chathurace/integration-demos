@@ -11,10 +11,29 @@ type ProductStock record {|
     int stock;
 |};
 
+type ProductOrder record {|
+    string 'order;
+    string product;
+    int amount;
+|};
+
+type Supplier record {|
+    string supplierId;
+    int staff;
+    int eta;
+    float price;
+|};
+
 type AllocationRequest record {|
     string orderId;
     string productId;
     int quantity;    
+|};
+
+type SupplierOrder record {|
+    string supplierId;
+    string productId;
+    int quantity;
 |};
 
 enum ALLOCATION_STATUS {ALLOCATED, OUT_OF_STOCK, INVALID_PRODUCT};
@@ -39,7 +58,7 @@ type BalanceCheckResponse record {|
 type Customer record {|
     string customerId;
     string address;
-    boolean blocked;
+    string status;
 |};
 
 type Shipment record {|

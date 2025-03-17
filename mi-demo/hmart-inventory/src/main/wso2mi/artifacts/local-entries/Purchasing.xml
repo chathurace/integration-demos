@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<localEntry key="Purchasing" xmlns="http://ws.apache.org/ns/synapse">
+  <file.init>
+    <connectionType>LOCAL</connectionType>
+    <workingDir>/Users/chathura/work/temp/orders</workingDir>
+    <fileLockScheme>Local</fileLockScheme>
+    <name>Purchasing</name>
+  </file.init>
+</localEntry>

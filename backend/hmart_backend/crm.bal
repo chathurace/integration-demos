@@ -3,8 +3,8 @@ import ballerina/io;
 service /crm on new http:Listener(8092) {
 
     map<Customer> customers = {
-        "c1": {customerId: "c1", address: "5, Park road, Brisbane, QLD 4000", blocked: false},
-        "c2": {customerId: "c2", address: "8, Lake street, Brisbane, QLD 4000", blocked: true}
+        "c1": {customerId: "c1", address: "5, Park road, Brisbane, QLD 4000", status: "ACTIVE"},
+        "c2": {customerId: "c2", address: "8, Lake street, Brisbane, QLD 4000", status: "BLOCKED"}
     };
 
     resource function get customers/[string customerId]() returns Customer|error {
@@ -20,6 +20,6 @@ service /crm on new http:Listener(8092) {
             return error("Customer not found.");
         }
         Customer customer = self.customers.get(customerId);
-        customer.blocked = true;
+        customer.status = "BLOCKED";
     }
 }
